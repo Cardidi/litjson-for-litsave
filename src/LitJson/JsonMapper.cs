@@ -21,9 +21,28 @@ namespace LitJson
 {
     internal struct PropertyMetadata
     {
-        public MemberInfo Info;
-        public bool       IsField;
-        public Type       Type;
+        public MemberInfo  Info     { get; }
+        public bool        IsField  { get; }
+        public Type        Type     { get; }
+        public bool        Ignored  { get; }
+
+        public PropertyMetadata(FieldInfo info)
+        {
+            Info = info;
+            IsField = true;
+            Type = info.FieldType;
+            var eum = info.GetCustomAttributes(typeof(JsonIgnoreAttribute), true).GetEnumerator();
+            Ignored = eum.MoveNext();
+        }
+
+        public PropertyMetadata(PropertyInfo info)
+        {
+            Info = info;
+            IsField = false;
+            Type = info.PropertyType;
+            var eum = info.GetCustomAttributes(typeof(JsonIgnoreAttribute), true).GetEnumerator();
+            Ignored = eum.MoveNext();
+        }
     }
 
 
@@ -97,7 +116,7 @@ namespace LitJson
     public delegate IJsonWrapper WrapperFactory ();
 
 
-    public class JsonMapper
+    public static class JsonMapper
     {
         #region Fields
         private static readonly int max_nesting_depth;
@@ -220,19 +239,12 @@ namespace LitJson
                     continue;
                 }
 
-                PropertyMetadata p_data = new PropertyMetadata ();
-                p_data.Info = p_info;
-                p_data.Type = p_info.PropertyType;
-
+                PropertyMetadata p_data = new PropertyMetadata (p_info);
                 data.Properties.Add (p_info.Name, p_data);
             }
 
-            foreach (FieldInfo f_info in type.GetFields ()) {
-                PropertyMetadata p_data = new PropertyMetadata ();
-                p_data.Info = f_info;
-                p_data.IsField = true;
-                p_data.Type = f_info.FieldType;
-
+            foreach (FieldInfo f_info in type.GetFields (BindingFlags.NonPublic | BindingFlags.Public)) {
+                PropertyMetadata p_data = new PropertyMetadata (f_info);
                 data.Properties.Add (f_info.Name, p_data);
             }
 
@@ -256,17 +268,12 @@ namespace LitJson
                 if (p_info.Name == "Item")
                     continue;
 
-                PropertyMetadata p_data = new PropertyMetadata ();
-                p_data.Info = p_info;
-                p_data.IsField = false;
+                PropertyMetadata p_data = new PropertyMetadata (p_info);
                 props.Add (p_data);
             }
 
             foreach (FieldInfo f_info in type.GetFields ()) {
-                PropertyMetadata p_data = new PropertyMetadata ();
-                p_data.Info = f_info;
-                p_data.IsField = true;
-
+                PropertyMetadata p_data = new PropertyMetadata (f_info);
                 props.Add (p_data);
             }
 
@@ -334,7 +341,7 @@ namespace LitJson
                 reader.Token == JsonToken.Long ||
                 reader.Token == JsonToken.String ||
                 reader.Token == JsonToken.Boolean) {
-
+                
                 Type json_type = reader.Value.GetType ();
 
                 if (value_type.IsAssignableFrom (json_type))
@@ -425,59 +432,119 @@ namespace LitJson
                 } else
                     instance = list;
 
-            } else if (reader.Token == JsonToken.ObjectStart) {
+            } 
+            else if (reader.Token == JsonToken.ObjectStart) {
                 AddObjectMetadata (value_type);
                 ObjectMetadata t_data = object_metadata[value_type];
 
-                instance = Activator.CreateInstance (value_type);
+                // Only first constructor will being used.
+                var cc_make =
+                    value_type.GetConstructors(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                foreach (var c in cc_make)
+                {
+                    var eum = c.GetCustomAttributes(typeof(JsonConstructorAttribute), false).GetEnumerator();
+                    if (eum.MoveNext())
+                    {
+                        var parameters = c.GetParameters();
+                        var dict = new Dictionary<string, object>();
+                    
+                        // Create the dict of parameters.
+                        while (true)
+                        {
+                            reader.Read();
 
-                while (true) {
-                    reader.Read ();
+                            if (reader.Token == JsonToken.ObjectEnd)
+                                break;
 
-                    if (reader.Token == JsonToken.ObjectEnd)
-                        break;
-
-                    string property = (string) reader.Value;
-
-                    if (t_data.Properties.ContainsKey (property)) {
-                        PropertyMetadata prop_data =
-                            t_data.Properties[property];
-
-                        if (prop_data.IsField) {
-                            ((FieldInfo) prop_data.Info).SetValue (
-                                instance, ReadValue (prop_data.Type, reader));
-                        } else {
-                            PropertyInfo p_info =
-                                (PropertyInfo) prop_data.Info;
-
-                            if (p_info.CanWrite)
-                                p_info.SetValue (
-                                    instance,
-                                    ReadValue (prop_data.Type, reader),
-                                    null);
+                            string property = ((string) reader.Value).ToLower();
+                            var param = Array.Find(parameters, pi => pi.Name == property);
+                            if (param != null)
+                            {
+                                // Valid value
+                                dict.Add(property, ReadValue(param.ParameterType, reader));
+                            }
                             else
-                                ReadValue (prop_data.Type, reader);
-                        }
-
-                    } else {
-                        if (! t_data.IsDictionary) {
-
-                            if (! reader.SkipNonMembers) {
-                                throw new JsonException (String.Format (
-                                        "The type {0} doesn't have the " +
-                                        "property '{1}'",
-                                        inst_type, property));
-                            } else {
-                                ReadSkip (reader);
-                                continue;
+                            {
+                                ReadSkip(reader);
                             }
                         }
 
-                        ((IDictionary) instance).Add (
-                            property, ReadValue (
-                                t_data.ElementType, reader));
+                        var p = new List<object>();
+                        foreach (var inf in parameters)
+                        {
+                            var n = inf.Name.ToLower();
+                            if (dict.ContainsKey(n)) p.Add(dict[n]);
+                            else p.Add(null);
+                        }
+                        
+                        instance = c.Invoke(p.ToArray());
+                        break;
                     }
+                }
 
+                if (instance == null)
+                {
+                    // No [JsonConstructor] was applied.
+                    instance = Activator.CreateInstance(value_type);
+
+                    while (true)
+                    {
+                        reader.Read();
+
+                        if (reader.Token == JsonToken.ObjectEnd)
+                            break;
+
+                        string property = (string) reader.Value;
+
+                        if (t_data.Properties.ContainsKey(property))
+                        {
+                            PropertyMetadata prop_data =
+                                t_data.Properties[property];
+
+                            if (prop_data.IsField)
+                            {
+                                ((FieldInfo) prop_data.Info).SetValue(
+                                    instance, ReadValue(prop_data.Type, reader));
+                            }
+                            else
+                            {
+                                PropertyInfo p_info =
+                                    (PropertyInfo) prop_data.Info;
+
+                                if (p_info.CanWrite)
+                                    p_info.SetValue(
+                                        instance,
+                                        ReadValue(prop_data.Type, reader),
+                                        null);
+                                else
+                                    ReadValue(prop_data.Type, reader);
+                            }
+
+                        }
+                        else
+                        {
+                            if (!t_data.IsDictionary)
+                            {
+
+                                if (!reader.SkipNonMembers)
+                                {
+                                    throw new JsonException(String.Format(
+                                        "The type {0} doesn't have the " +
+                                        "property '{1}'",
+                                        inst_type, property));
+                                }
+                                else
+                                {
+                                    ReadSkip(reader);
+                                    continue;
+                                }
+                            }
+
+                            ((IDictionary) instance).Add(
+                                property, ReadValue(
+                                    t_data.ElementType, reader));
+                        }
+                    }
                 }
 
             }
@@ -855,7 +922,11 @@ namespace LitJson
             IList<PropertyMetadata> props = type_properties[obj_type];
 
             writer.WriteObjectStart ();
-            foreach (PropertyMetadata p_data in props) {
+            foreach (PropertyMetadata p_data in props)
+            {
+                var ignoreMember = p_data.Ignored;
+                if (ignoreMember) continue;
+                
                 if (p_data.IsField) {
                     writer.WritePropertyName (p_data.Info.Name);
                     WriteValue (((FieldInfo) p_data.Info).GetValue (obj),
@@ -863,7 +934,6 @@ namespace LitJson
                 }
                 else {
                     PropertyInfo p_info = (PropertyInfo) p_data.Info;
-
                     if (p_info.CanRead) {
                         writer.WritePropertyName (p_data.Info.Name);
                         WriteValue (p_info.GetValue (obj, null),

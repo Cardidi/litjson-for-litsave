@@ -49,7 +49,7 @@ namespace LitJson.Test
 
             Assert.AreEqual (f, (bool) data, "A4");
         }
-
+        
         [Test]
         public void AsDoubleTest ()
         {

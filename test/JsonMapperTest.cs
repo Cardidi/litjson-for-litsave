@@ -217,104 +217,100 @@ namespace LitJson.Test
     public class JsonMapperTest
     {
         [Test]
-        public void CustomExporterTest ()
+        public void CustomExporterTest()
         {
             // Custom DateTime exporter that only uses the Year value
             ExporterFunc<DateTime> exporter =
-                delegate (DateTime obj, JsonWriter writer) {
-                    writer.Write (obj.Year);
-                };
+                delegate(DateTime obj, JsonWriter writer) { writer.Write(obj.Year); };
 
-            JsonMapper.RegisterExporter<DateTime> (exporter);
+            JsonMapper.RegisterExporter<DateTime>(exporter);
 
-            OrderedDictionary sample = new OrderedDictionary ();
+            OrderedDictionary sample = new OrderedDictionary();
 
-            sample.Add ("date", new DateTime (1980, 12, 8));
+            sample.Add("date", new DateTime(1980, 12, 8));
 
-            string json = JsonMapper.ToJson (sample);
+            string json = JsonMapper.ToJson(sample);
             string expected = "{\"date\":1980}";
 
-            JsonMapper.UnregisterExporters ();
+            JsonMapper.UnregisterExporters();
 
-            Assert.AreEqual (expected, json);
+            Assert.AreEqual(expected, json);
         }
 
         [Test]
-        public void CustomImporterTest ()
+        public void CustomImporterTest()
         {
             // Custom DateTime importer that only uses the Year value
             // (assuming January 1st of that year)
             ImporterFunc<int, DateTime> importer =
-                delegate (int obj) {
-                    return new DateTime (obj, 1, 1);
-                };
+                delegate(int obj) { return new DateTime(obj, 1, 1); };
 
-            JsonMapper.RegisterImporter<int, DateTime> (importer);
+            JsonMapper.RegisterImporter<int, DateTime>(importer);
 
             string json = "{ \"TestDateTime\" : 1980 }";
 
             ValueTypesTest sample =
-                JsonMapper.ToObject<ValueTypesTest> (json);
+                JsonMapper.ToObject<ValueTypesTest>(json);
 
-            JsonMapper.UnregisterImporters ();
+            JsonMapper.UnregisterImporters();
 
-            Assert.AreEqual (new DateTime (1980, 1, 1), sample.TestDateTime);
+            Assert.AreEqual(new DateTime(1980, 1, 1), sample.TestDateTime);
         }
 
         [Test]
-        public void EmptyObjectsTest ()
+        public void EmptyObjectsTest()
         {
-            JsonData empty_obj = JsonMapper.ToObject ("{}");
-            Assert.IsTrue (empty_obj.IsObject, "A1");
+            JsonData empty_obj = JsonMapper.ToObject("{}");
+            Assert.IsTrue(empty_obj.IsObject, "A1");
 
-            string empty_json = JsonMapper.ToJson (empty_obj);
-            Assert.AreEqual ("{}", empty_json, "A2");
+            string empty_json = JsonMapper.ToJson(empty_obj);
+            Assert.AreEqual("{}", empty_json, "A2");
 
-            JsonData empty_array = JsonMapper.ToObject ("[]");
-            Assert.IsTrue (empty_array.IsArray, "B1");
+            JsonData empty_array = JsonMapper.ToObject("[]");
+            Assert.IsTrue(empty_array.IsArray, "B1");
 
-            empty_json = JsonMapper.ToJson (empty_array);
-            Assert.AreEqual ("[]", empty_json, "B2");
+            empty_json = JsonMapper.ToJson(empty_array);
+            Assert.AreEqual("[]", empty_json, "B2");
         }
 
         [Test]
-        public void ExportArrayOfIntsTest ()
+        public void ExportArrayOfIntsTest()
         {
-            int[] numbers = new int[] { 1, 1, 2, 3, 5, 8, 13 };
+            int[] numbers = new int[] {1, 1, 2, 3, 5, 8, 13};
 
-            string json = JsonMapper.ToJson (numbers);
+            string json = JsonMapper.ToJson(numbers);
 
-            Assert.AreEqual ("[1,1,2,3,5,8,13]", json);
+            Assert.AreEqual("[1,1,2,3,5,8,13]", json);
         }
 
         [Test]
-        public void ExportDictionaryTest ()
+        public void ExportDictionaryTest()
         {
-            IDictionary hash = new OrderedDictionary ();
+            IDictionary hash = new OrderedDictionary();
 
-            hash.Add ("product", "ACME rocket skates");
-            hash.Add ("quantity", 5);
-            hash.Add ("price", 45.95);
+            hash.Add("product", "ACME rocket skates");
+            hash.Add("quantity", 5);
+            hash.Add("price", 45.95);
 
             string expected = "{\"product\":\"ACME rocket skates\"," +
-                "\"quantity\":5,\"price\":45.95}";
+                              "\"quantity\":5,\"price\":45.95}";
 
-            string json = JsonMapper.ToJson (hash);
+            string json = JsonMapper.ToJson(hash);
 
-            Assert.AreEqual (expected, json);
+            Assert.AreEqual(expected, json);
         }
 
         [Test]
-        public void ExportEnumsTest ()
+        public void ExportEnumsTest()
         {
-            EnumsTest e_test = new EnumsTest ();
+            EnumsTest e_test = new EnumsTest();
 
             e_test.FavouritePlanet = Planets.Saturn;
             e_test.Band = Instruments.Bass | Instruments.Harp;
 
-            string json = JsonMapper.ToJson (e_test);
+            string json = JsonMapper.ToJson(e_test);
 
-            Assert.AreEqual ("{\"FavouritePlanet\":1,\"Band\":9}", json);
+            Assert.AreEqual("{\"FavouritePlanet\":1,\"Band\":9}", json);
         }
 
         [Test]
@@ -334,12 +330,12 @@ namespace LitJson.Test
         }
 
         [Test]
-        public void ExportObjectTest ()
+        public void ExportObjectTest()
         {
-            UiSample sample = new UiSample ();
+            UiSample sample = new UiSample();
 
             sample.widget.window.title = "FooBar";
-            sample.widget.window.name  = "foo_window";
+            sample.widget.window.name = "foo_window";
             sample.widget.window.width = 400;
             sample.widget.window.height = 300;
 
@@ -356,82 +352,86 @@ namespace LitJson.Test
             sample.widget.text.alignment = "center";
 
             string expected = "{\"widget\":{\"window\":" +
-                "{\"title\":\"FooBar\",\"name\":\"foo_window\"," +
-                "\"width\":400,\"height\":300},\"image\":{\"src\":" +
-                "\"logo.png\",\"name\":\"Foo Logo\",\"hOffset\":10," +
-                "\"vOffset\":20,\"alignment\":\"right\"},\"text\":{" +
-                "\"data\":\"About Us\",\"size\":24,\"style\":\"normal\"," +
-                "\"name\":\"about\",\"hOffset\":0,\"vOffset\":0," +
-                "\"alignment\":\"center\",\"onMouseUp\":null}," +
-                "\"debug\":false}}";
+                              "{\"title\":\"FooBar\",\"name\":\"foo_window\"," +
+                              "\"width\":400,\"height\":300},\"image\":{\"src\":" +
+                              "\"logo.png\",\"name\":\"Foo Logo\",\"hOffset\":10," +
+                              "\"vOffset\":20,\"alignment\":\"right\"},\"text\":{" +
+                              "\"data\":\"About Us\",\"size\":24,\"style\":\"normal\"," +
+                              "\"name\":\"about\",\"hOffset\":0,\"vOffset\":0," +
+                              "\"alignment\":\"center\",\"onMouseUp\":null}," +
+                              "\"debug\":false}}";
 
-            string json = JsonMapper.ToJson (sample);
+            string json = JsonMapper.ToJson(sample);
 
-            Assert.AreEqual (expected, json);
+            Assert.AreEqual(expected, json);
         }
 
         [Test]
-        public void ExportPrettyPrint ()
+        public void ExportPrettyPrint()
         {
-            OrderedDictionary sample = new OrderedDictionary ();
+            OrderedDictionary sample = new OrderedDictionary();
 
             sample["rolling"] = "stones";
             sample["flaming"] = "pie";
             sample["nine"] = 9;
 
-            string expected =string.Join(
+            string expected = string.Join(
                 Environment.NewLine,
-                new [] {
+                new[]
+                {
                     "",
                     "{",
                     "    \"rolling\" : \"stones\",",
                     "    \"flaming\" : \"pie\",",
                     "    \"nine\"    : 9",
-                    "}"});
+                    "}"
+                });
 
-            JsonWriter writer = new JsonWriter ();
+            JsonWriter writer = new JsonWriter();
             writer.PrettyPrint = true;
 
-            JsonMapper.ToJson (sample, writer);
+            JsonMapper.ToJson(sample, writer);
 
-            Assert.AreEqual (expected, writer.ToString (), "A1");
+            Assert.AreEqual(expected, writer.ToString(), "A1");
 
-            writer.Reset ();
+            writer.Reset();
             writer.IndentValue = 8;
 
             expected = string.Join(
                 Environment.NewLine,
-                new [] {
+                new[]
+                {
                     "",
                     "{",
                     "        \"rolling\" : \"stones\",",
                     "        \"flaming\" : \"pie\",",
                     "        \"nine\"    : 9",
-                    "}"});
-            JsonMapper.ToJson (sample, writer);
+                    "}"
+                });
+            JsonMapper.ToJson(sample, writer);
 
-            Assert.AreEqual (expected, writer.ToString (), "A2");
+            Assert.AreEqual(expected, writer.ToString(), "A2");
         }
 
         [Test]
-        public void ExportValueTypesTest ()
+        public void ExportValueTypesTest()
         {
-            ValueTypesTest test = new ValueTypesTest ();
+            ValueTypesTest test = new ValueTypesTest();
 
-            test.TestByte     = 200;
-            test.TestChar     = 'P';
-            test.TestDateTime = new DateTime (2012, 12, 22);
-            test.TestDecimal  = 10.333m;
-            test.TestSByte    = -5;
-            test.TestShort    = 1024;
-            test.TestUShort   = 30000;
-            test.TestUInt     = 90000000;
-            test.TestULong    = 0xFFFFFFFFFFFFFFFF; // = =18446744073709551615
+            test.TestByte = 200;
+            test.TestChar = 'P';
+            test.TestDateTime = new DateTime(2012, 12, 22);
+            test.TestDecimal = 10.333m;
+            test.TestSByte = -5;
+            test.TestShort = 1024;
+            test.TestUShort = 30000;
+            test.TestUInt = 90000000;
+            test.TestULong = 0xFFFFFFFFFFFFFFFF; // = =18446744073709551615
             test.TestDateTimeOffset =
                 new DateTimeOffset(2019, 9, 18, 16, 47,
                     50, 123, TimeSpan.FromHours(8)).AddTicks(4567);
 
-            string json = JsonMapper.ToJson (test);
+            string json = JsonMapper.ToJson(test);
             string expected =
                 "{\"TestByte\":200,\"TestChar\":\"P\",\"TestDateTime\":" +
                 "\"12/22/2012 00:00:00\",\"TestDecimal\":10.333," +
@@ -439,11 +439,11 @@ namespace LitJson.Test
                 ",\"TestUInt\":90000000,\"TestULong\":18446744073709551615" +
                 ",\"TestDateTimeOffset\":\"2019-09-18T16:47:50.1234567+08:00\"}";
 
-            Assert.AreEqual (expected, json);
+            Assert.AreEqual(expected, json);
         }
 
         [Test]
-        public void ImportArrayOfStringsTest ()
+        public void ImportArrayOfStringsTest()
         {
             string json = @"[
                 ""Adam"",
@@ -452,14 +452,14 @@ namespace LitJson.Test
                 ""Justin""
             ]";
 
-            string[] names = JsonMapper.ToObject<string[]> (json);
+            string[] names = JsonMapper.ToObject<string[]>(json);
 
-            Assert.IsTrue (names.Length == 4, "A1");
-            Assert.AreEqual (names[1], "Danny", "A2");
+            Assert.IsTrue(names.Length == 4, "A1");
+            Assert.AreEqual(names[1], "Danny", "A2");
         }
 
         [Test]
-        public void ImportEnumsTest ()
+        public void ImportEnumsTest()
         {
             string json = @"
                 {
@@ -467,15 +467,15 @@ namespace LitJson.Test
                     ""Band"" : 6
                 }";
 
-            EnumsTest e_test = JsonMapper.ToObject<EnumsTest> (json);
+            EnumsTest e_test = JsonMapper.ToObject<EnumsTest>(json);
 
-            Assert.AreEqual (Planets.Pluto, e_test.FavouritePlanet, "A1");
-            Assert.AreEqual (Instruments.Guitar
-                             | Instruments.Drums, e_test.Band, "A2");
+            Assert.AreEqual(Planets.Pluto, e_test.FavouritePlanet, "A1");
+            Assert.AreEqual(Instruments.Guitar
+                            | Instruments.Drums, e_test.Band, "A2");
         }
 
         [Test]
-        public void ImportExtendedGrammarTest ()
+        public void ImportExtendedGrammarTest()
         {
             string json = @"
                 {
@@ -489,53 +489,54 @@ namespace LitJson.Test
                 }
                 ";
 
-            JsonData data = JsonMapper.ToObject (json);
+            JsonData data = JsonMapper.ToObject(json);
 
-            Assert.AreEqual ("example.com", (string) data["domain"], "A1");
-            Assert.AreEqual ("127.0.0.1", (string) data["ip_address"], "A2");
+            Assert.AreEqual("example.com", (string) data["domain"], "A1");
+            Assert.AreEqual("127.0.0.1", (string) data["ip_address"], "A2");
         }
 
         [Test]
-        public void ImportFromFileTest ()
+        public void ImportFromFileTest()
         {
             JsonData data;
 
-            Assembly asmb = typeof (JsonMapperTest).Assembly;
+            Assembly asmb = typeof(JsonMapperTest).Assembly;
 
-            StreamReader stream = new StreamReader (
-                asmb.GetManifestResourceStream (asmb.GetName().Name + ".json-example.txt"));
+            StreamReader stream = new StreamReader(
+                asmb.GetManifestResourceStream(asmb.GetName().Name + ".json-example.txt"));
 
-            using (stream) {
-                data = JsonMapper.ToObject (stream);
+            using (stream)
+            {
+                data = JsonMapper.ToObject(stream);
             }
 
-            Assert.AreEqual (
+            Assert.AreEqual(
                 "cofaxCDS",
                 (string) data["web-app"]["servlet"][0]["servlet-name"],
                 "A1");
-            Assert.AreEqual (
+            Assert.AreEqual(
                 false,
                 (bool) data["web-app"]["servlet"][0]["init-param"]["useJSP"],
                 "A2");
-            Assert.AreEqual (
+            Assert.AreEqual(
                 "cofax.tld",
                 (string) data["web-app"]["taglib"]["taglib-uri"],
                 "A1");
         }
 
         [Test]
-        public void ImportJsonDataArrayTest ()
+        public void ImportJsonDataArrayTest()
         {
             string json = " [ 1, 10, 100, 1000 ] ";
 
-            JsonData data = JsonMapper.ToObject (json);
+            JsonData data = JsonMapper.ToObject(json);
 
-            Assert.AreEqual (4, data.Count, "A1");
-            Assert.AreEqual (1000, (int) data[3], "A2");
+            Assert.AreEqual(4, data.Count, "A1");
+            Assert.AreEqual(1000, (int) data[3], "A2");
         }
 
         [Test]
-        public void ImportManyJsonTextPiecesTest ()
+        public void ImportManyJsonTextPiecesTest()
         {
             string json_arrays = @"
                 [ true, true, false, false ]
@@ -544,32 +545,32 @@ namespace LitJson.Test
                 ";
 
             JsonReader reader;
-            JsonData   arrays;
+            JsonData arrays;
 
-            reader = new JsonReader (json_arrays);
-            arrays = JsonMapper.ToObject (reader);
+            reader = new JsonReader(json_arrays);
+            arrays = JsonMapper.ToObject(reader);
 
-            Assert.IsFalse (reader.EndOfInput, "A1");
+            Assert.IsFalse(reader.EndOfInput, "A1");
 
-            Assert.IsTrue (arrays.IsArray, "A2");
-            Assert.AreEqual (4, arrays.Count, "A3");
-            Assert.AreEqual (true, (bool) arrays[0], "A4");
+            Assert.IsTrue(arrays.IsArray, "A2");
+            Assert.AreEqual(4, arrays.Count, "A3");
+            Assert.AreEqual(true, (bool) arrays[0], "A4");
 
-            arrays = JsonMapper.ToObject (reader);
+            arrays = JsonMapper.ToObject(reader);
 
-            Assert.IsFalse (reader.EndOfInput, "A5");
+            Assert.IsFalse(reader.EndOfInput, "A5");
 
-            Assert.IsTrue (arrays.IsArray, "A6");
-            Assert.AreEqual (3, arrays.Count, "A7");
-            Assert.AreEqual (10, (int) arrays[0], "A8");
+            Assert.IsTrue(arrays.IsArray, "A6");
+            Assert.AreEqual(3, arrays.Count, "A7");
+            Assert.AreEqual(10, (int) arrays[0], "A8");
 
-            arrays = JsonMapper.ToObject (reader);
+            arrays = JsonMapper.ToObject(reader);
 
-            Assert.IsTrue (arrays.IsArray, "A9");
-            Assert.AreEqual (2, arrays.Count, "A10");
-            Assert.AreEqual ("war is over", (string) arrays[0], "A11");
+            Assert.IsTrue(arrays.IsArray, "A9");
+            Assert.AreEqual(2, arrays.Count, "A10");
+            Assert.AreEqual("war is over", (string) arrays[0], "A11");
 
-            reader.Close ();
+            reader.Close();
 
             string json_objects = @"
                 {
@@ -587,36 +588,82 @@ namespace LitJson.Test
                 }
                 ";
 
-            reader = new JsonReader (json_objects);
+            reader = new JsonReader(json_objects);
             UiWindow window;
 
-            window = JsonMapper.ToObject<UiWindow> (reader);
+            window = JsonMapper.ToObject<UiWindow>(reader);
 
-            Assert.IsFalse (reader.EndOfInput, "A12");
+            Assert.IsFalse(reader.EndOfInput, "A12");
 
-            Assert.AreEqual ("First", window.title, "A13");
-            Assert.AreEqual (640, window.width, "A14");
+            Assert.AreEqual("First", window.title, "A13");
+            Assert.AreEqual(640, window.width, "A14");
 
-            window = JsonMapper.ToObject<UiWindow> (reader);
+            window = JsonMapper.ToObject<UiWindow>(reader);
 
-            Assert.AreEqual ("Second", window.title, "A15");
-            Assert.AreEqual (800, window.width, "A16");
+            Assert.AreEqual("Second", window.title, "A15");
+            Assert.AreEqual(800, window.width, "A16");
 
-            reader.Close ();
+            reader.Close();
 
             // Read them in a loop to make sure we get the correct number of
             // iterations
-            reader = new JsonReader (json_objects);
+            reader = new JsonReader(json_objects);
 
             int i = 0;
 
-            while (! reader.EndOfInput) {
-                window = JsonMapper.ToObject<UiWindow> (reader);
+            while (!reader.EndOfInput)
+            {
+                window = JsonMapper.ToObject<UiWindow>(reader);
                 i++;
             }
 
-            Assert.AreEqual (2, i, "A17");
+            Assert.AreEqual(2, i, "A17");
         }
+
+        class Test
+        {
+            private int A;
+
+            public string B;
+
+            [JsonIgnore] public bool isViaConstructor = false;
+
+            [JsonConstructor]
+            private Test(int a, string b)
+            {
+                this.A = a;
+                this.B = b;
+                isViaConstructor = true;
+            }
+            
+            public Test(int a, string b, int c)
+            {
+                this.A = a;
+                this.B = b;
+            }
+
+        }
+        
+        [Test]
+        public void ConstructorInjectionTest()
+        {
+            string json = @"{
+    ""A"" : 1,
+    ""B"" : ""test"" 
+}";
+            var obj = JsonMapper.ToObject<Test>(json);
+            Assert.IsTrue(obj.isViaConstructor);
+        }
+
+
+        [Test]
+        public void IgnoreTest()
+        {
+            var json = JsonMapper.ToJson(new Test(1, "test", 0));
+            string match = @"{""A"":1,""B"":""test""}";
+            Assert.IsTrue(json.Equals(match));
+        }
+
 
         [Test]
         public void ImportNestedArrays ()
