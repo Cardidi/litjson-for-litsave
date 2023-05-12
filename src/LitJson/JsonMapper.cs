@@ -142,7 +142,9 @@ namespace LitJson
         private bool is_dictionary;
 
         private IDictionary<string, PropertyMetadata> properties;
+        private ConstructorInfo jsonCtor;
 
+        public ConstructorInfo JsonCtor => jsonCtor;
 
         public Type ElementType {
             get {
@@ -163,6 +165,26 @@ namespace LitJson
         public IDictionary<string, PropertyMetadata> Properties {
             get { return properties; }
             set { properties = value; }
+        }
+
+        internal ObjectMetadata(Type type)
+        {
+            element_type = type;
+            is_dictionary = default;
+            properties = default;
+            jsonCtor = default;
+            
+            var cc_make =
+                type.GetConstructors(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+
+            foreach (var cc in cc_make)
+            {
+                if (cc.GetCustomAttributes(typeof(JsonConstructorAttribute), false).GetEnumerator().MoveNext())
+                {
+                    jsonCtor = cc;
+                    break;
+                }
+            }
         }
     }
 
@@ -280,8 +302,8 @@ namespace LitJson
             if (object_metadata.ContainsKey (type))
                 return;
 
-            ObjectMetadata data = new ObjectMetadata ();
-
+            ObjectMetadata data = new ObjectMetadata (type);
+ 
             if (type.GetInterface ("System.Collections.IDictionary") != null)
                 data.IsDictionary = true;
 
@@ -502,49 +524,42 @@ namespace LitJson
                 AddObjectMetadata (value_type);
                 ObjectMetadata t_data = object_metadata[value_type];
 
-                // Only first constructor will being used.
-                var cc_make =
-                    value_type.GetConstructors(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                foreach (var c in cc_make)
+                if (t_data.JsonCtor != null)
                 {
-                    var eum = c.GetCustomAttributes(typeof(JsonConstructorAttribute), false).GetEnumerator();
-                    if (eum.MoveNext())
-                    {
-                        var parameters = c.GetParameters();
-                        var dict = new Dictionary<string, object>();
+                    var c = t_data.JsonCtor;
+                    var parameters = c.GetParameters();
+                    var dict = new Dictionary<string, object>();
                     
-                        // Create the dict of parameters.
-                        while (true)
+                    // Create the dict of parameters.
+                    while (true)
+                    {
+                        reader.Read();
+
+                        if (reader.Token == JsonToken.ObjectEnd)
+                            break;
+
+                        string property = ((string) reader.Value).ToLower();
+                        var param = Array.Find(parameters, pi => pi.Name == property);
+                        if (param != null)
                         {
-                            reader.Read();
-
-                            if (reader.Token == JsonToken.ObjectEnd)
-                                break;
-
-                            string property = ((string) reader.Value).ToLower();
-                            var param = Array.Find(parameters, pi => pi.Name == property);
-                            if (param != null)
-                            {
-                                // Valid value
-                                dict.Add(property, ReadValue(param.ParameterType, reader));
-                            }
-                            else
-                            {
-                                ReadSkip(reader);
-                            }
+                            // Valid value
+                            dict.Add(property, ReadValue(param.ParameterType, reader));
                         }
-
-                        var p = new List<object>();
-                        foreach (var inf in parameters)
+                        else
                         {
-                            var n = inf.Name.ToLower();
-                            if (dict.ContainsKey(n)) p.Add(dict[n]);
-                            else p.Add(null);
+                            ReadSkip(reader);
                         }
-                        
-                        instance = c.Invoke(p.ToArray());
-                        break;
                     }
+
+                    var p = new List<object>();
+                    foreach (var inf in parameters)
+                    {
+                        var n = inf.Name.ToLower();
+                        if (dict.ContainsKey(n)) p.Add(dict[n]);
+                        else p.Add(null);
+                    }
+                        
+                    instance = c.Invoke(p.ToArray());
                 }
 
                 if (instance == null)
