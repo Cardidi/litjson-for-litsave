@@ -26,22 +26,82 @@ namespace LitJson
         public Type        Type     { get; }
         public bool        Ignored  { get; }
 
-        public PropertyMetadata(FieldInfo info)
+        public PropertyMetadata(FieldInfo info, bool typeIsSerializable)
         {
             Info = info;
             IsField = true;
             Type = info.FieldType;
-            var eum = info.GetCustomAttributes(typeof(JsonIgnoreAttribute), true).GetEnumerator();
-            Ignored = eum.MoveNext();
+            
+            // Get test of attr
+            var ignoreAttr = info.GetCustomAttributes(typeof(JsonIgnoredAttribute), true).GetEnumerator().MoveNext();
+            
+            if (typeIsSerializable == false)
+            {
+                var serAttr = info.GetCustomAttributes(typeof(JsonIncludedAttribute), true).GetEnumerator().MoveNext();
+                if (serAttr & ignoreAttr) 
+                    throw new JsonException("Should not set an property with [JsonSerializable] and [JsonIgnore] together!");
+
+
+                if (ignoreAttr)
+                {
+                    Ignored = true;
+                }
+                else
+                {
+                    if (serAttr)
+                    {
+                        Ignored = false;
+                    }
+                    else
+                    {
+                        // If field is private, please ignore it.
+                        Ignored = info.IsPrivate;
+                    }
+                }
+            }
+            else
+            {
+                Ignored = ignoreAttr;
+            }
         }
 
-        public PropertyMetadata(PropertyInfo info)
+        public PropertyMetadata(PropertyInfo info, bool typeIsSerializable)
         {
             Info = info;
             IsField = false;
             Type = info.PropertyType;
-            var eum = info.GetCustomAttributes(typeof(JsonIgnoreAttribute), true).GetEnumerator();
-            Ignored = eum.MoveNext();
+            
+            // Get test of attr
+            var ignoreAttr = info.GetCustomAttributes(typeof(JsonIgnoredAttribute), true).GetEnumerator().MoveNext();
+            
+            if (typeIsSerializable == false)
+            {
+                var serAttr = info.GetCustomAttributes(typeof(JsonIncludedAttribute), true).GetEnumerator().MoveNext();
+                if (serAttr & ignoreAttr)
+                    throw new JsonException(
+                        "Should not set an property with [JsonSerializable] and [JsonIgnore] together!");
+
+                if (ignoreAttr)
+                {
+                    Ignored = true;
+                }
+                else
+                {
+                    if (serAttr)
+                    {
+                        Ignored = false;
+                    }
+                    else
+                    {
+                        // If any property get/set is null or private, please ignore it.
+                        Ignored = info.GetGetMethod(false) == null || info.GetSetMethod(false) == null;
+                    }
+                }
+            }
+            else
+            {
+                Ignored = ignoreAttr;
+            }
         }
     }
 
@@ -192,6 +252,7 @@ namespace LitJson
             if (type.GetInterface ("System.Collections.IList") != null)
                 data.IsList = true;
 
+            //todo What this means?
             foreach (PropertyInfo p_info in type.GetProperties ()) {
                 if (p_info.Name != "Item")
                     continue;
@@ -226,7 +287,7 @@ namespace LitJson
 
             data.Properties = new Dictionary<string, PropertyMetadata> ();
 
-            foreach (PropertyInfo p_info in type.GetProperties ()) {
+            foreach (PropertyInfo p_info in type.GetProperties (BindingFlags.NonPublic | BindingFlags.Public)) {
                 if (p_info.Name == "Item") {
                     ParameterInfo[] parameters = p_info.GetIndexParameters ();
 
@@ -239,12 +300,14 @@ namespace LitJson
                     continue;
                 }
 
-                PropertyMetadata p_data = new PropertyMetadata (p_info);
+                PropertyMetadata p_data = new PropertyMetadata (p_info, false);
+                if (p_data.Ignored) continue;
                 data.Properties.Add (p_info.Name, p_data);
             }
 
             foreach (FieldInfo f_info in type.GetFields (BindingFlags.NonPublic | BindingFlags.Public)) {
-                PropertyMetadata p_data = new PropertyMetadata (f_info);
+                PropertyMetadata p_data = new PropertyMetadata (f_info, false);
+                if (p_data.Ignored) continue;
                 data.Properties.Add (f_info.Name, p_data);
             }
 
@@ -264,16 +327,18 @@ namespace LitJson
 
             IList<PropertyMetadata> props = new List<PropertyMetadata> ();
 
-            foreach (PropertyInfo p_info in type.GetProperties ()) {
+            foreach (PropertyInfo p_info in type.GetProperties (BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance)) {
                 if (p_info.Name == "Item")
                     continue;
 
-                PropertyMetadata p_data = new PropertyMetadata (p_info);
+                PropertyMetadata p_data = new PropertyMetadata (p_info, false);
+                if (p_data.Ignored) continue;
                 props.Add (p_data);
             }
 
-            foreach (FieldInfo f_info in type.GetFields ()) {
-                PropertyMetadata p_data = new PropertyMetadata (f_info);
+            foreach (FieldInfo f_info in type.GetFields (BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance)) {
+                PropertyMetadata p_data = new PropertyMetadata (f_info, false);
+                if (p_data.Ignored) continue;
                 props.Add (p_data);
             }
 

@@ -622,11 +622,12 @@ namespace LitJson.Test
 
         class Test
         {
+            [JsonIncluded]
             private int A;
 
             public string B;
 
-            [JsonIgnore] public bool isViaConstructor = false;
+            [JsonIgnored] public bool isViaConstructor = false;
 
             [JsonConstructor]
             private Test(int a, string b)
@@ -661,7 +662,7 @@ namespace LitJson.Test
         {
             var json = JsonMapper.ToJson(new Test(1, "test", 0));
             string match = @"{""A"":1,""B"":""test""}";
-            Assert.IsTrue(json.Equals(match));
+            Assert.IsTrue(json.Equals(match), "result is " + json);
         }
 
 

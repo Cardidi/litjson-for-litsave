@@ -13,13 +13,13 @@ namespace LitJson
     /// Apply on private field or property to indicate that field or property should not being serialized.
     /// </summary>
     [AttributeUsage(validOn: AttributeTargets.Field | AttributeTargets.Property)]
-    public class JsonIgnoreAttribute : Attribute {}
+    public class JsonIgnoredAttribute : Attribute {}
     
     
     /// <summary>
     /// Apply on private field or property to indicate that field or property should being serialized.
     /// </summary>
     [AttributeUsage(validOn: AttributeTargets.Field | AttributeTargets.Property)]
-    public class JsonSerializableAttribute : Attribute {}
+    public class JsonIncludedAttribute : Attribute {}
 
 }
